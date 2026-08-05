@@ -17,7 +17,7 @@ function Navbar() {
           </div>
 
           <span className="text-lg font-semibold text-neutral-100">
-            CryptoMarket
+            Crypto Market
           </span>
         </div>
 
@@ -27,7 +27,7 @@ function Navbar() {
           </NavLink>
 
           <NavLink to="/markets" className={navLinkClasses}>
-            Markets
+            Marketler
           </NavLink>
         </div>
       </nav>
