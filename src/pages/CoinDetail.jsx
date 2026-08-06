@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router";
+import TradeRow from "../components/TradeRow.jsx";
+import OrderBookRow from "../components/OrderBookRow.jsx";
 
 const sampleSellOrders = [
   {
@@ -34,6 +36,29 @@ const sampleBuyOrders = [
     id: 3,
     price: "67,240.10",
     amount: "0.0193",
+  },
+];
+const sampleTrades = [
+  {
+    id: 1,
+    price: "67,243.20",
+    amount: "0.0124",
+    time: "10:07:24",
+    side: "buy",
+  },
+  {
+    id: 2,
+    price: "67,242.80",
+    amount: "0.0361",
+    time: "10:07:19",
+    side: "sell",
+  },
+  {
+    id: 3,
+    price: "67,243.60",
+    amount: "0.0087",
+    time: "10:07:12",
+    side: "buy",
   },
 ];
 
@@ -119,21 +144,15 @@ function CoinDetail() {
           </div>
 
           {/* Satış emirleri */}
-          <div className="flex min-h-48 flex-col justify-center">
-            <div className="mt-4">
-              {sampleSellOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="font-data grid grid-cols-2 py-2 text-sm"
-                >
-                  <span className="text-red-400">{order.price}</span>
-
-                  <span className="text-right text-neutral-300">
-                    {order.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="mt-4">
+            {sampleSellOrders.map((order) => (
+              <OrderBookRow
+                key={order.id}
+                price={order.price}
+                amount={order.amount}
+                type="sell"
+              />
+            ))}
           </div>
 
           <div className="font-data my-3 flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-xs text-neutral-400">
@@ -143,16 +162,12 @@ function CoinDetail() {
           {/* Alış emirleri */}
           <div className="mt-3">
             {sampleBuyOrders.map((order) => (
-              <div
+              <OrderBookRow
                 key={order.id}
-                className="font-data grid grid-cols-2 py-2 text-sm"
-              >
-                <span className="text-lime-400">{order.price}</span>
-
-                <span className="text-right text-neutral-300">
-                  {order.amount}
-                </span>
-              </div>
+                price={order.price}
+                amount={order.amount}
+                type="buy"
+              />
             ))}
           </div>
         </div>
@@ -175,9 +190,16 @@ function CoinDetail() {
 
             <span className="text-right">Saat</span>
           </div>
-
-          <div className="flex min-h-40 items-center justify-center">
-            <p className="text-sm text-neutral-500">İşlem verisi bekleniyor</p>
+          <div className="mt-4">
+            {sampleTrades.map((trade) => (
+              <TradeRow
+                key={trade.id}
+                price={trade.price}
+                amount={trade.amount}
+                time={trade.time}
+                side={trade.side}
+              />
+            ))}
           </div>
         </div>
       </div>
