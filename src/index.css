@@ -36,3 +36,25 @@ select {
 .font-data {
   font-family: "JetBrains Mono", monospace;
 }
+
+input[type="search"]::-webkit-search-cancel-button {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  appearance: none;
+  background:
+    linear-gradient(
+      45deg,
+      transparent 43%,
+      #bef264 43%,
+      #bef264 57%,
+      transparent 57%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 43%,
+      #bef264 43%,
+      #bef264 57%,
+      transparent 57%
+    );
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="48px" height="48px" xmlns:bx="https://boxy-svg.com">
+  <polyline style="fill: none; stroke: rgb(124, 207, 0); stroke-width: 22px;" points="14.743 204.131 107.231 201.109 164.512 118.468 194.911 265.97 231.525 180.727 266.711 238.204 325.468 114.251 357.887 218.821 395.578 189.228"/>
+  <path d="M 206.389 187.72 m -206.389 0 a 206.389 187.656 0 1 0 412.778 0 a 206.389 187.656 0 1 0 -412.778 0 Z M 206.389 187.72 m -171.896 0 a 171.896 153.739 0 0 1 343.792 0 a 171.896 153.739 0 0 1 -343.792 0 Z" bx:shape="ring 206.389 187.72 171.896 153.739 206.389 187.656 1@ed54647b" style="stroke: rgba(0, 0, 0, 0); fill: rgb(247, 254, 231);"/>
+  <rect x="839.874" y="64.938" width="52.213" height="231.289" style="stroke: rgba(0, 0, 0, 0); fill: rgb(247, 254, 231); transform-box: fill-box; transform-origin: 50% 50%;" transform="matrix(0.705921, -0.70829, 0.70829, 0.705921, -466.319536, 219.290561)"/>
+</svg>
