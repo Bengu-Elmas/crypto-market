@@ -1,5 +1,6 @@
 import TrendCoinCard from "../components/TrendCoinCard.jsx";
 import MarketStatCard from "../components/MarketStatCard.jsx";
+import TextType from "../components/TextType.jsx";
 
 const marketStats = [
   {
@@ -55,7 +56,15 @@ function Dashboard() {
         <p className="mb-3 text-sm font-medium text-lime-400">Piyasa Özeti</p>
 
         <h1 className="text-3xl font-bold tracking-tight text-neutral-100 sm:text-4xl">
-          KRİPTO PİYASASINI TEK BAKIŞTA GÖRÜN
+          <TextType
+            text="KRİPTO PİYASASINI TEK BAKIŞTA GÖRÜN"
+            as="span"
+            typingSpeed={60}
+            loop={false}
+            showCursor
+            cursorCharacter="_"
+            cursorClassName="text-lime-400"
+          />
         </h1>
 
         <p className="mt-3 max-w-2xl leading-7 text-neutral-400">

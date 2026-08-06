@@ -19,7 +19,7 @@ function Navbar() {
           />
 
           <span className="text-lg font-semibold">
-            <span className="text-lime-400">Crypto</span>
+            <span className="text-lime-400">Crypto </span>
             <span className="text-neutral-100">Market</span>
           </span>
         </div>
