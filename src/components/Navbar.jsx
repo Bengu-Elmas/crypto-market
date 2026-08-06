@@ -18,8 +18,9 @@ function Navbar() {
             className="h-10 w-10 object-contain"
           />
 
-          <span className="text-lg font-semibold text-neutral-100">
-            Crypto Market
+          <span className="text-lg font-semibold">
+            <span className="text-lime-400">Crypto</span>
+            <span className="text-neutral-100">Market</span>
           </span>
         </div>
 
