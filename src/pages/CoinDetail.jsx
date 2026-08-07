@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router";
 import TradeRow from "../components/TradeRow.jsx";
 import OrderBookRow from "../components/OrderBookRow.jsx";
+import TextType from "../components/TextType.jsx";
 
 const sampleSellOrders = [
   {
@@ -76,7 +77,15 @@ function CoinDetail() {
           </p>
 
           <h1 className="text-3xl font-bold tracking-tight text-neutral-100 sm:text-4xl">
-            {symbol.toUpperCase()}/USDT
+            <TextType
+              text={`${symbol.toUpperCase()}/USDT`}
+              as="span"
+              typingSpeed={60}
+              loop={false}
+              showCursor
+              cursorCharacter="_"
+              cursorClassName="text-lime-400"
+            />
           </h1>
 
           <p className="mt-3 text-neutral-400">

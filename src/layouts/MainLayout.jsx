@@ -1,6 +1,7 @@
 import { Outlet } from "react-router";
 import Navbar from "../components/Navbar.jsx";
 import SideRays from "../components/SideRays.jsx";
+import Footer from "../components/Footer.jsx";
 
 function MainLayout() {
   return (
@@ -21,12 +22,13 @@ function MainLayout() {
         />
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex min-h-screen flex-col">
         <Navbar />
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
           <Outlet />
         </main>
+        <Footer />
       </div>
     </div>
   );
