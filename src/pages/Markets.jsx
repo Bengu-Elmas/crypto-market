@@ -1,39 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
+import { getMarketCoins } from "../services/coinGeckoService.js";
 
 import TextType from "../components/TextType.jsx";
 
-const sampleCoins = [
-  {
-    id: "bitcoin",
-    name: "Bitcoin",
-    symbol: "BTC",
-    price: "—",
-    marketCap: "—",
-    change: 2.4,
-  },
-  {
-    id: "ethereum",
-    name: "Ethereum",
-    symbol: "ETH",
-    price: "—",
-    marketCap: "—",
-    change: -1.2,
-  },
-  {
-    id: "solana",
-    name: "Solana",
-    symbol: "SOL",
-    price: "—",
-    marketCap: "—",
-    change: 3.7,
-  },
-];
+function formatPrice(price) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: price < 1 ? 6 : 2,
+  }).format(price);
+}
+
+function formatMarketCap(marketCap) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(marketCap);
+}
 
 function Markets() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [coins, setCoins] = useState([]);
 
-  const filteredCoins = sampleCoins.filter((coin) => {
+  const filteredCoins = coins.filter((coin) => {
     const query = searchTerm.toLowerCase();
 
     return (
@@ -41,6 +34,30 @@ function Markets() {
       coin.symbol.toLowerCase().includes(query)
     );
   });
+
+  useEffect(() => {
+    async function loadMarketCoins() {
+      console.log("[Markets] Coin verileri isteniyor.");
+
+      try {
+        const data = await getMarketCoins();
+
+        console.log("[Markets] Coin verileri başarıyla alındı:", data.length);
+
+        setCoins(data);
+      } catch (error) {
+        console.error("[Markets] Coin verileri alınırken hata oluştu:", error);
+      }
+    }
+
+    loadMarketCoins();
+  }, []);
+
+  useEffect(() => {
+    if (coins.length > 0) {
+      console.log("[Markets] Coin state'i güncellendi:", coins.length, "coin");
+    }
+  }, [coins]);
 
   return (
     <section>
@@ -113,34 +130,42 @@ function Markets() {
                 className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 rounded-2xl bg-neutral-950 px-4 py-4 transition-all duration-300 hover:scale-[1.01] hover:bg-neutral-800 hover:shadow-[0_6px_20px_rgba(163,230,53,0.08)] sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] sm:px-5"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 font-medium text-lime-400">
-                    {coin.name.charAt(0)}
-                  </div>
+                  <img
+                    src={coin.image}
+                    alt={`${coin.name} logosu`}
+                    className="h-9 w-9 shrink-0 object-contain"
+                  />
 
                   <div className="min-w-0">
                     <p className="truncate text-neutral-100">{coin.name}</p>
 
                     <p className="font-data mt-0.5 text-xs text-neutral-500">
-                      {coin.symbol}
+                      {coin.symbol.toUpperCase()}
                     </p>
                   </div>
                 </div>
 
                 <span className="font-data justify-self-center text-sm text-neutral-400">
-                  {coin.price}
+                  {formatPrice(coin.current_price)}
                 </span>
 
                 <span className="font-data hidden justify-self-center text-sm text-neutral-400 sm:block">
-                  {coin.marketCap}
+                  {formatMarketCap(coin.market_cap)}
                 </span>
 
                 <span
                   className={`font-data justify-self-end text-sm ${
-                    coin.change >= 0 ? "text-lime-400" : "text-red-400"
+                    Number(coin.price_change_percentage_24h?.toFixed(2)) > 0
+                      ? "text-lime-400"
+                      : Number(coin.price_change_percentage_24h?.toFixed(2)) < 0
+                        ? "text-red-400"
+                        : "text-neutral-400"
                   }`}
                 >
-                  {coin.change >= 0 ? "+" : ""}
-                  {coin.change.toFixed(2)}%
+                  {Number(coin.price_change_percentage_24h?.toFixed(2)) > 0
+                    ? "+"
+                    : ""}
+                  {coin.price_change_percentage_24h?.toFixed(2)}%
                 </span>
               </Link>
             ))
