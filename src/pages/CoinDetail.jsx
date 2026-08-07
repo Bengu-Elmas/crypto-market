@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import TradeRow from "../components/TradeRow.jsx";
 import OrderBookRow from "../components/OrderBookRow.jsx";
 import TextType from "../components/TextType.jsx";
+import CandlestickChart from "../components/CandlestickChart.jsx";
+import {
+  getKlines,
+  get24hTicker,
+  connectTickerStream,
+  connectKlineStream,
+} from "../services/binanceService.js";
 
 const sampleSellOrders = [
   {
@@ -63,14 +70,158 @@ const sampleTrades = [
   },
 ];
 
+function formatPrice(price) {
+  if (price == null) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
 function CoinDetail() {
   const { symbol } = useParams();
   const [selectedInterval, setSelectedInterval] = useState("1m");
+  const [candles, setCandles] = useState([]);
+  const [ticker24h, setTicker24h] = useState(null);
+  const [livePrice, setLivePrice] = useState(null);
+
+  const currentPrice =
+    livePrice ?? (ticker24h ? Number(ticker24h.lastPrice) : null);
+
+  const high24h = ticker24h ? Number(ticker24h.highPrice) : null;
+  const low24h = ticker24h ? Number(ticker24h.lowPrice) : null;
+  const change24h = ticker24h ? Number(ticker24h.priceChangePercent) : null;
+  const [liveCandle, setLiveCandle] = useState(null);
+
+  useEffect(() => {
+    async function loadKlines() {
+      console.log("[CoinDetail] Mum verileri isteniyor.");
+
+      try {
+        const data = await getKlines(
+          `${symbol.toUpperCase()}USDT`,
+          selectedInterval,
+        );
+
+        setCandles(data);
+
+        console.log("[CoinDetail] Mum verileri başarıyla alındı:", data.length);
+      } catch (error) {
+        console.error(
+          "[CoinDetail] Mum verileri alınırken hata oluştu:",
+          error,
+        );
+      }
+    }
+
+    loadKlines();
+  }, [symbol, selectedInterval]);
+
+  useEffect(() => {
+    if (candles.length > 0) {
+      console.log(
+        "[CoinDetail] Candle state'i güncellendi:",
+        candles.length,
+        "mum",
+      );
+    }
+  }, [candles]);
+
+  useEffect(() => {
+    async function load24hTicker() {
+      console.log("[CoinDetail] 24 saatlik ticker verisi isteniyor.");
+
+      try {
+        const data = await get24hTicker(`${symbol.toUpperCase()}USDT`);
+
+        console.log(
+          "[CoinDetail] 24 saatlik ticker verisi başarıyla alındı:",
+          data,
+        );
+
+        setTicker24h(data);
+      } catch (error) {
+        console.error(
+          "[CoinDetail] 24 saatlik ticker verisi alınırken hata oluştu:",
+          error,
+        );
+      }
+    }
+
+    load24hTicker();
+  }, [symbol]);
+
+  useEffect(() => {
+    const ws = connectTickerStream(`${symbol.toUpperCase()}USDT`, (data) => {
+      const price = Number(data.c);
+
+      console.log("[CoinDetail] Canlı fiyat:", price);
+
+      setLivePrice(price);
+
+      setTicker24h((previousTicker) => ({
+        ...previousTicker,
+        highPrice: data.h,
+        lowPrice: data.l,
+        priceChangePercent: data.P,
+      }));
+    });
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener(
+          "open",
+          () => {
+            ws.close();
+          },
+          { once: true },
+        );
+      }
+    };
+  }, [symbol]);
+
+  useEffect(() => {
+    const ws = connectKlineStream(
+      `${symbol.toUpperCase()}USDT`,
+      selectedInterval,
+      (data) => {
+        const kline = data.k;
+
+        const formattedCandle = {
+          time: Math.floor(kline.t / 1000),
+          open: Number(kline.o),
+          high: Number(kline.h),
+          low: Number(kline.l),
+          close: Number(kline.c),
+          volume: Number(kline.v),
+        };
+
+        console.log("[CoinDetail] Düzenlenmiş canlı mum:", formattedCandle);
+
+        setLiveCandle(formattedCandle);
+      },
+    );
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [symbol, selectedInterval]);
 
   return (
     <section>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] xl:items-end">
+        <div className="min-w-0">
           <p className="mb-3 flex items-center gap-2 text-sm font-medium text-lime-400">
             <span className="h-2 w-2 rounded-full bg-lime-400" />
             Canlı Piyasa
@@ -88,18 +239,54 @@ function CoinDetail() {
             />
           </h1>
 
-          <p className="mt-3 text-neutral-400">
+          <p className="mt-3 max-w-xl text-neutral-400">
             Fiyat hareketlerini, emir defterini ve son işlemleri gerçek zamanlı
             olarak takip et.
           </p>
         </div>
 
-        <div className="rounded-2xl bg-neutral-900 px-6 py-4">
-          <p className="text-sm text-neutral-400">Güncel Fiyat</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+            <p className="text-sm text-neutral-400">Güncel Fiyat</p>
 
-          <p className="font-data mt-2 text-2xl font-semibold text-neutral-100">
-            —
-          </p>
+            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-neutral-100">
+              {currentPrice ? formatPrice(currentPrice) : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+            <p className="text-sm text-neutral-400">24s En Yüksek</p>
+
+            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-lime-400">
+              {high24h ? formatPrice(high24h) : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+            <p className="text-sm text-neutral-400">24s En Düşük</p>
+
+            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-red-400">
+              {low24h ? formatPrice(low24h) : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+            <p className="text-sm text-neutral-400">24s Değişim</p>
+
+            <p
+              className={`font-data mt-2 whitespace-nowrap text-xl font-semibold ${
+                change24h > 0
+                  ? "text-lime-400"
+                  : change24h < 0
+                    ? "text-red-400"
+                    : "text-neutral-400"
+              }`}
+            >
+              {change24h != null
+                ? `${change24h > 0 ? "+" : ""}${change24h.toFixed(2)}%`
+                : "—"}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -133,8 +320,8 @@ function CoinDetail() {
           </div>
         </div>
 
-        <div className="mt-5 flex min-h-80 items-center justify-center rounded-2xl bg-neutral-950">
-          <p className="text-sm text-neutral-500">Grafik verisi bekleniyor</p>
+        <div className="mt-5 min-h-80 rounded-2xl bg-neutral-950">
+          <CandlestickChart candles={candles} liveCandle={liveCandle} />
         </div>
       </div>
       <div className="mt-5 rounded-2xl bg-neutral-900 p-5">
