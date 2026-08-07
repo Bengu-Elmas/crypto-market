@@ -25,6 +25,9 @@ function formatMarketCap(marketCap) {
 function Markets() {
   const [searchTerm, setSearchTerm] = useState("");
   const [coins, setCoins] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const coinsPerPage = 25;
 
   const [sortConfig, setSortConfig] = useState({
     key: "market_cap",
@@ -61,6 +64,13 @@ function Markets() {
     }));
   }
 
+  const totalPages = Math.ceil(sortedCoins.length / coinsPerPage);
+
+  const startIndex = (currentPage - 1) * coinsPerPage;
+  const endIndex = startIndex + coinsPerPage;
+
+  const paginatedCoins = sortedCoins.slice(startIndex, endIndex);
+
   useEffect(() => {
     async function loadMarketCoins() {
       console.log("[Markets] Coin verileri isteniyor.");
@@ -84,6 +94,10 @@ function Markets() {
       console.log("[Markets] Coin state'i güncellendi:", coins.length, "coin");
     }
   }, [coins]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <section>
@@ -175,8 +189,8 @@ function Markets() {
           </div>
 
           {/* Coin satırları */}
-          {sortedCoins.length > 0 ? (
-            sortedCoins.map((coin) => (
+          {paginatedCoins.length > 0 ? (
+            paginatedCoins.map((coin) => (
               <Link
                 key={coin.id}
                 to={`/coin/${coin.symbol.toLowerCase()}`}
@@ -227,6 +241,26 @@ function Markets() {
               Aradığınız kripto bulunamadı.
             </p>
           )}
+        </div>
+        <div className="mt-6 flex items-center justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, index) => {
+            const pageNumber = index + 1;
+
+            return (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setCurrentPage(pageNumber)}
+                className={`h-10 min-w-10 rounded-xl px-3 font-medium transition-colors ${
+                  currentPage === pageNumber
+                    ? "bg-lime-400 text-neutral-950"
+                    : "bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+                }`}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

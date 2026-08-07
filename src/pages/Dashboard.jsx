@@ -1,55 +1,127 @@
 import TrendCoinCard from "../components/TrendCoinCard.jsx";
 import MarketStatCard from "../components/MarketStatCard.jsx";
 import TextType from "../components/TextType.jsx";
+import { useEffect, useState } from "react";
+import {
+  getGlobalMarketData,
+  getTrendingCoins,
+} from "../services/coinGeckoService.js";
 
-const marketStats = [
-  {
-    id: "market-cap",
-    title: "Toplam Piyasa Değeri",
-    value: "—",
-  },
-  {
-    id: "volume",
-    title: "24 Saatlik İşlem Hacmi",
-    value: "—",
-  },
-  {
-    id: "btc-dominance",
-    title: "Bitcoin Hakimiyeti",
-    value: "—",
-  },
-  {
-    id: "active-coins",
-    title: "Aktif Kripto Para",
-    value: "—",
-  },
-];
+function formatCompactCurrency(value) {
+  if (value == null) {
+    return "—";
+  }
 
-const trendingCoins = [
-  {
-    id: "bitcoin",
-    name: "Bitcoin",
-    symbol: "BTC",
-    price: "—",
-    change: 2.4,
-  },
-  {
-    id: "ethereum",
-    name: "Ethereum",
-    symbol: "ETH",
-    price: "—",
-    change: -1.2,
-  },
-  {
-    id: "solana",
-    name: "Solana",
-    symbol: "SOL",
-    price: "—",
-    change: 3.7,
-  },
-];
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatNumber(value) {
+  if (value == null) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US").format(value);
+}
 
 function Dashboard() {
+  const [globalData, setGlobalData] = useState(null);
+  const [trendingCoins, setTrendingCoins] = useState([]);
+
+  const marketStats = [
+    {
+      id: "market-cap",
+      title: "Toplam Piyasa Değeri",
+      value: formatCompactCurrency(globalData?.total_market_cap?.usd),
+    },
+    {
+      id: "volume",
+      title: "24 Saatlik İşlem Hacmi",
+      value: formatCompactCurrency(globalData?.total_volume?.usd),
+    },
+    {
+      id: "btc-dominance",
+      title: "Bitcoin Hakimiyeti",
+      value:
+        globalData?.market_cap_percentage?.btc != null
+          ? `${globalData.market_cap_percentage.btc.toFixed(2)}%`
+          : "—",
+    },
+    {
+      id: "active-coins",
+      title: "Aktif Kripto Para",
+      value: formatNumber(globalData?.active_cryptocurrencies),
+    },
+  ];
+
+  useEffect(() => {
+    async function loadGlobalMarketData() {
+      console.log("[Dashboard] Global piyasa verileri isteniyor.");
+
+      try {
+        const data = await getGlobalMarketData();
+
+        console.log(
+          "[Dashboard] Global piyasa verileri başarıyla alındı:",
+          data,
+        );
+
+        setGlobalData(data);
+      } catch (error) {
+        console.error(
+          "[Dashboard] Global piyasa verileri alınırken hata oluştu:",
+          error,
+        );
+      }
+    }
+
+    loadGlobalMarketData();
+  }, []);
+
+  useEffect(() => {
+    async function loadTrendingCoins() {
+      console.log("[Dashboard] Trending coinler isteniyor.");
+
+      try {
+        const data = await getTrendingCoins();
+
+        console.log(
+          "[Dashboard] Trending coinler başarıyla alındı:",
+          data.length,
+        );
+
+        setTrendingCoins(data);
+      } catch (error) {
+        console.error(
+          "[Dashboard] Trending coinler alınırken hata oluştu:",
+          error,
+        );
+      }
+    }
+
+    loadTrendingCoins();
+  }, []);
+
+  useEffect(() => {
+    if (globalData) {
+      console.log("[Dashboard] Global data state'i güncellendi.");
+    }
+  }, [globalData]);
+
+  useEffect(() => {
+    if (trendingCoins.length > 0) {
+      console.log(
+        "[Dashboard] Trending state'i güncellendi:",
+        trendingCoins.length,
+        "coin",
+      );
+    }
+  }, [trendingCoins]);
+
   return (
     <section>
       <div>
@@ -90,11 +162,12 @@ function Dashboard() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {trendingCoins.map((coin) => (
               <TrendCoinCard
-                key={coin.id}
+                key={coin.id ?? coin.symbol ?? coin.name}
                 name={coin.name}
                 symbol={coin.symbol}
                 price={coin.price}
                 change={coin.change}
+                image={coin.image}
               />
             ))}
           </div>
