@@ -26,6 +26,11 @@ function Markets() {
   const [searchTerm, setSearchTerm] = useState("");
   const [coins, setCoins] = useState([]);
 
+  const [sortConfig, setSortConfig] = useState({
+    key: "market_cap",
+    direction: "desc",
+  });
+
   const filteredCoins = coins.filter((coin) => {
     const query = searchTerm.toLowerCase();
 
@@ -34,6 +39,27 @@ function Markets() {
       coin.symbol.toLowerCase().includes(query)
     );
   });
+
+  const sortedCoins = [...filteredCoins].sort((a, b) => {
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+
+    if (sortConfig.direction === "asc") {
+      return aValue - bValue;
+    }
+
+    return bValue - aValue;
+  });
+
+  function handleSort(key) {
+    setSortConfig((previousSort) => ({
+      key,
+      direction:
+        previousSort.key === key && previousSort.direction === "desc"
+          ? "asc"
+          : "desc",
+    }));
+  }
 
   useEffect(() => {
     async function loadMarketCoins() {
@@ -106,24 +132,51 @@ function Markets() {
       <div className="mt-6 rounded-2xl bg-neutral-900 p-4">
         <div className="space-y-2">
           {/* Tablo başlıkları */}
-          <div className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider text-neutral-500 sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] sm:px-5">
+          <div className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-300 sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] sm:px-5">
             <span>COIN</span>
 
-            <span className="justify-self-center">FİYAT</span>
+            <button
+              type="button"
+              onClick={() => handleSort("current_price")}
+              className="justify-self-center font-semibold text-neutral-300 transition-colors hover:text-lime-400"
+            >
+              FİYAT{" "}
+              {sortConfig.key === "current_price" &&
+                (sortConfig.direction === "desc" ? "↓" : "↑")}
+            </button>
 
-            <span className="hidden justify-self-center sm:block">
-              PİYASA DEĞERİ
-            </span>
+            <button
+              type="button"
+              onClick={() => handleSort("market_cap")}
+              className="hidden justify-self-center font-semibold text-neutral-300 transition-colors hover:text-lime-400 sm:block"
+            >
+              PİYASA DEĞERİ{" "}
+              {sortConfig.key === "market_cap" &&
+                (sortConfig.direction === "desc" ? "↓" : "↑")}
+            </button>
 
-            <span className="justify-self-end">
-              <span className="sm:hidden">24s</span>
-              <span className="hidden sm:inline">24s DEĞİŞİM</span>
-            </span>
+            <button
+              type="button"
+              onClick={() => handleSort("price_change_percentage_24h")}
+              className="justify-self-end font-semibold text-neutral-300 transition-colors hover:text-lime-400"
+            >
+              <span className="sm:hidden">
+                24s{" "}
+                {sortConfig.key === "price_change_percentage_24h" &&
+                  (sortConfig.direction === "desc" ? "↓" : "↑")}
+              </span>
+
+              <span className="hidden sm:inline">
+                24s DEĞİŞİM{" "}
+                {sortConfig.key === "price_change_percentage_24h" &&
+                  (sortConfig.direction === "desc" ? "↓" : "↑")}
+              </span>
+            </button>
           </div>
 
           {/* Coin satırları */}
-          {filteredCoins.length > 0 ? (
-            filteredCoins.map((coin) => (
+          {sortedCoins.length > 0 ? (
+            sortedCoins.map((coin) => (
               <Link
                 key={coin.id}
                 to={`/coin/${coin.symbol.toLowerCase()}`}
