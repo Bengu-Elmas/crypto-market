@@ -1,4 +1,4 @@
-const COINGECKO_BASE_URL = import.meta.env.VITE_COINGECKO_BASE_URL || "/api";
+const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 
 export async function getMarketCoins() {
   console.log("[CoinGecko] getMarketCoins çağrıldı.");
