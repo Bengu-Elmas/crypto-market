@@ -36,9 +36,14 @@ function Dashboard() {
   const [trendingCoins, setTrendingCoins] = useState([]);
   const [marketCoins, setMarketCoins] = useState([]);
   const hasLoadedDashboard = useRef(false);
+
   const [isGlobalLoading, setIsGlobalLoading] = useState(true);
   const [isTrendingLoading, setIsTrendingLoading] = useState(true);
   const [isMarketLoading, setIsMarketLoading] = useState(true);
+
+  const [globalError, setGlobalError] = useState(null);
+  const [trendingError, setTrendingError] = useState(null);
+  const [marketError, setMarketError] = useState(null);
 
   const marketStats = [
     {
@@ -66,6 +71,81 @@ function Dashboard() {
     },
   ];
 
+  async function loadGlobalData() {
+    console.log("[Dashboard] Global piyasa verileri isteniyor.");
+
+    setIsGlobalLoading(true);
+    setGlobalError(null);
+
+    try {
+      const data = await getGlobalMarketData();
+
+      setGlobalData(data);
+
+      console.log("[Dashboard] Global piyasa verileri alındı.");
+    } catch (error) {
+      console.error(
+        "[Dashboard] Global piyasa verileri alınırken hata oluştu:",
+        error,
+      );
+
+      setGlobalError("Genel piyasa verileri şu anda alınamıyor.");
+    } finally {
+      setIsGlobalLoading(false);
+    }
+  }
+
+  async function loadTrendingData() {
+    console.log("[Dashboard] Trending coinler isteniyor.");
+
+    setIsTrendingLoading(true);
+    setTrendingError(null);
+
+    try {
+      const data = await getTrendingCoins();
+
+      setTrendingCoins(data);
+
+      console.log("[Dashboard] Trending coinler alındı:", data.length);
+    } catch (error) {
+      console.error(
+        "[Dashboard] Trending coinler alınırken hata oluştu:",
+        error,
+      );
+
+      setTrendingError("Trend coinler şu anda alınamıyor.");
+    } finally {
+      setIsTrendingLoading(false);
+    }
+  }
+
+  async function loadMarketMovers() {
+    console.log("[Dashboard] Yükselen/düşen coin verileri isteniyor.");
+
+    setIsMarketLoading(true);
+    setMarketError(null);
+
+    try {
+      const data = await getMarketCoins();
+
+      setMarketCoins(data);
+
+      console.log(
+        "[Dashboard] Yükselen/düşen coin verileri alındı:",
+        data.length,
+      );
+    } catch (error) {
+      console.error(
+        "[Dashboard] Market coinleri alınırken hata oluştu:",
+        error,
+      );
+
+      setMarketError("Yükselen ve düşen coinler şu anda alınamıyor.");
+    } finally {
+      setIsMarketLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (hasLoadedDashboard.current) {
       return;
@@ -76,56 +156,9 @@ function Dashboard() {
     async function loadDashboardData() {
       console.log("[Dashboard] Veriler yükleniyor.");
 
-      try {
-        const globalMarketData = await getGlobalMarketData();
-
-        setGlobalData(globalMarketData);
-
-        console.log("[Dashboard] Global piyasa verileri alındı.");
-      } catch (error) {
-        console.error(
-          "[Dashboard] Global piyasa verileri alınırken hata oluştu:",
-          error,
-        );
-      } finally {
-        setIsGlobalLoading(false);
-      }
-
-      try {
-        const trendingData = await getTrendingCoins();
-
-        setTrendingCoins(trendingData);
-
-        console.log(
-          "[Dashboard] Trending coinler alındı:",
-          trendingData.length,
-        );
-      } catch (error) {
-        console.error(
-          "[Dashboard] Trending coinler alınırken hata oluştu:",
-          error,
-        );
-      } finally {
-        setIsTrendingLoading(false);
-      }
-
-      try {
-        const marketData = await getMarketCoins();
-
-        setMarketCoins(marketData);
-
-        console.log(
-          "[Dashboard] Yükselen/düşen coin verileri alındı:",
-          marketData.length,
-        );
-      } catch (error) {
-        console.error(
-          "[Dashboard] Market coinleri alınırken hata oluştu:",
-          error,
-        );
-      } finally {
-        setIsMarketLoading(false);
-      }
+      await loadGlobalData();
+      await loadTrendingData();
+      await loadMarketMovers();
     }
 
     loadDashboardData();
@@ -170,20 +203,34 @@ function Dashboard() {
         </p>
       </div>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isGlobalLoading
-          ? Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="rounded-2xl bg-neutral-900 p-5">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="mt-4 h-8 w-24" />
-              </div>
-            ))
-          : marketStats.map((stat) => (
-              <MarketStatCard
-                key={stat.id}
-                title={stat.title}
-                value={stat.value}
-              />
-            ))}
+        {isGlobalLoading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="rounded-2xl bg-neutral-900 p-5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="mt-4 h-8 w-24" />
+            </div>
+          ))
+        ) : globalError ? (
+          <div className="col-span-full rounded-2xl bg-neutral-900 px-6 py-8 text-center">
+            <p className="text-neutral-300">{globalError}</p>
+
+            <button
+              type="button"
+              onClick={loadGlobalData}
+              className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        ) : (
+          marketStats.map((stat) => (
+            <MarketStatCard
+              key={stat.id}
+              title={stat.title}
+              value={stat.value}
+            />
+          ))
+        )}
       </div>
 
       <div className="mt-10">
@@ -197,36 +244,50 @@ function Dashboard() {
             Son dönemde kullanıcıların en çok ilgi gösterdiği kripto paralar.
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {isTrendingLoading
-              ? Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className="rounded-2xl bg-neutral-900 p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
+            {isTrendingLoading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="rounded-2xl bg-neutral-900 p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
 
-                        <div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="mt-2 h-3 w-12" />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end">
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="mt-2 h-3 w-14" />
+                      <div>
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="mt-2 h-3 w-12" />
                       </div>
                     </div>
+
+                    <div className="flex flex-col items-end">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="mt-2 h-3 w-14" />
+                    </div>
                   </div>
-                ))
-              : trendingCoins.map((coin) => (
-                  <TrendCoinCard
-                    key={coin.id ?? coin.symbol ?? coin.name}
-                    name={coin.name}
-                    symbol={coin.symbol}
-                    price={coin.price}
-                    change={coin.change}
-                    image={coin.image}
-                  />
-                ))}
+                </div>
+              ))
+            ) : trendingError ? (
+              <div className="col-span-full rounded-2xl bg-neutral-900 px-6 py-8 text-center">
+                <p className="text-neutral-300">{trendingError}</p>
+
+                <button
+                  type="button"
+                  onClick={loadTrendingData}
+                  className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            ) : (
+              trendingCoins.map((coin) => (
+                <TrendCoinCard
+                  key={coin.id ?? coin.symbol ?? coin.name}
+                  name={coin.name}
+                  symbol={coin.symbol}
+                  price={coin.price}
+                  change={coin.change}
+                  image={coin.image}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -264,6 +325,18 @@ function Dashboard() {
               </div>
             ))}
           </>
+        ) : marketError ? (
+          <div className="rounded-2xl bg-neutral-900 px-6 py-8 text-center lg:col-span-2">
+            <p className="text-neutral-300">{marketError}</p>
+
+            <button
+              type="button"
+              onClick={loadMarketMovers}
+              className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+            >
+              Tekrar Dene
+            </button>
+          </div>
         ) : (
           <>
             <MarketMoverCard

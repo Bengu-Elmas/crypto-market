@@ -44,6 +44,7 @@ function Markets() {
 
   const coinsPerPage = 25;
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   function toggleFavorite(coinId) {
     setFavorites((previousFavorites) => {
@@ -96,23 +97,28 @@ function Markets() {
 
   const paginatedCoins = sortedCoins.slice(startIndex, endIndex);
 
-  useEffect(() => {
-    async function loadMarketCoins() {
-      console.log("[Markets] Coin verileri isteniyor.");
+  async function loadMarketCoins() {
+    console.log("[Markets] Coin verileri isteniyor.");
 
-      try {
-        const data = await getMarketCoins();
+    setIsLoading(true);
+    setError(null);
 
-        console.log("[Markets] Coin verileri başarıyla alındı:", data.length);
+    try {
+      const data = await getMarketCoins();
 
-        setCoins(data);
-      } catch (error) {
-        console.error("[Markets] Coin verileri alınırken hata oluştu:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      console.log("[Markets] Coin verileri başarıyla alındı:", data.length);
+
+      setCoins(data);
+    } catch (error) {
+      console.error("[Markets] Coin verileri alınırken hata oluştu:", error);
+
+      setError("Piyasa verileri şu anda alınamıyor. Lütfen tekrar deneyin.");
+    } finally {
+      setIsLoading(false);
     }
+  }
 
+  useEffect(() => {
     loadMarketCoins();
   }, []);
 
@@ -303,6 +309,18 @@ function Markets() {
                 <Skeleton className="h-4 w-14 justify-self-end" />
               </div>
             ))
+          ) : error ? (
+            <div className="rounded-2xl bg-neutral-950 px-6 py-10 text-center">
+              <p className="text-neutral-300">{error}</p>
+
+              <button
+                type="button"
+                onClick={loadMarketCoins}
+                className="mt-5 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+              >
+                Tekrar Dene
+              </button>
+            </div>
           ) : paginatedCoins.length > 0 ? (
             paginatedCoins.map((coin) => {
               const isFavorite = favorites.includes(coin.id);
@@ -403,7 +421,7 @@ function Markets() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!isLoading && !error && totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center gap-2">
             {Array.from({ length: totalPages }, (_, index) => {
               const pageNumber = index + 1;
