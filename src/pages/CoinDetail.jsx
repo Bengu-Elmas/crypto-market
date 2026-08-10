@@ -1,74 +1,19 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router";
+
 import TradeRow from "../components/TradeRow.jsx";
 import OrderBookRow from "../components/OrderBookRow.jsx";
 import TextType from "../components/TextType.jsx";
 import CandlestickChart from "../components/CandlestickChart.jsx";
+
 import {
   getKlines,
   get24hTicker,
   connectTickerStream,
   connectKlineStream,
+  connectDepthStream,
+  connectTradeStream,
 } from "../services/binanceService.js";
-
-const sampleSellOrders = [
-  {
-    id: 1,
-    price: "67,245.20",
-    amount: "0.0284",
-  },
-  {
-    id: 2,
-    price: "67,244.80",
-    amount: "0.0412",
-  },
-  {
-    id: 3,
-    price: "67,243.50",
-    amount: "0.0157",
-  },
-];
-
-const sampleBuyOrders = [
-  {
-    id: 1,
-    price: "67,242.90",
-    amount: "0.0361",
-  },
-  {
-    id: 2,
-    price: "67,241.60",
-    amount: "0.0528",
-  },
-  {
-    id: 3,
-    price: "67,240.10",
-    amount: "0.0193",
-  },
-];
-const sampleTrades = [
-  {
-    id: 1,
-    price: "67,243.20",
-    amount: "0.0124",
-    time: "10:07:24",
-    side: "buy",
-  },
-  {
-    id: 2,
-    price: "67,242.80",
-    amount: "0.0361",
-    time: "10:07:19",
-    side: "sell",
-  },
-  {
-    id: 3,
-    price: "67,243.60",
-    amount: "0.0087",
-    time: "10:07:12",
-    side: "buy",
-  },
-];
 
 function formatPrice(price) {
   if (price == null) {
@@ -83,25 +28,53 @@ function formatPrice(price) {
   }).format(price);
 }
 
+function formatOrderPrice(price) {
+  if (price == null) {
+    return "—";
+  }
+
+  const maximumFractionDigits = price < 1 ? 8 : price < 100 ? 6 : 2;
+
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits,
+    useGrouping: false,
+  }).format(price);
+}
+
 function CoinDetail() {
   const { symbol } = useParams();
+
   const [selectedInterval, setSelectedInterval] = useState("1m");
+
   const [candles, setCandles] = useState([]);
+  const [liveCandle, setLiveCandle] = useState(null);
+
   const [ticker24h, setTicker24h] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
+
+  const [sellOrders, setSellOrders] = useState([]);
+  const [buyOrders, setBuyOrders] = useState([]);
+
+  const [trades, setTrades] = useState([]);
 
   const currentPrice =
     livePrice ?? (ticker24h ? Number(ticker24h.lastPrice) : null);
 
   const high24h = ticker24h ? Number(ticker24h.highPrice) : null;
-  const low24h = ticker24h ? Number(ticker24h.lowPrice) : null;
-  const change24h = ticker24h ? Number(ticker24h.priceChangePercent) : null;
-  const [liveCandle, setLiveCandle] = useState(null);
 
+  const low24h = ticker24h ? Number(ticker24h.lowPrice) : null;
+
+  const change24h = ticker24h ? Number(ticker24h.priceChangePercent) : null;
+
+  const spread =
+    sellOrders.length > 0 && buyOrders.length > 0
+      ? sellOrders[0].price - buyOrders[0].price
+      : null;
+
+  // Geçmiş mum verileri
   useEffect(() => {
     async function loadKlines() {
-      console.log("[CoinDetail] Mum verileri isteniyor.");
-
       try {
         const data = await getKlines(
           `${symbol.toUpperCase()}USDT`,
@@ -109,8 +82,6 @@ function CoinDetail() {
         );
 
         setCandles(data);
-
-        console.log("[CoinDetail] Mum verileri başarıyla alındı:", data.length);
       } catch (error) {
         console.error(
           "[CoinDetail] Mum verileri alınırken hata oluştu:",
@@ -122,27 +93,11 @@ function CoinDetail() {
     loadKlines();
   }, [symbol, selectedInterval]);
 
-  useEffect(() => {
-    if (candles.length > 0) {
-      console.log(
-        "[CoinDetail] Candle state'i güncellendi:",
-        candles.length,
-        "mum",
-      );
-    }
-  }, [candles]);
-
+  // 24 saatlik ticker verileri
   useEffect(() => {
     async function load24hTicker() {
-      console.log("[CoinDetail] 24 saatlik ticker verisi isteniyor.");
-
       try {
         const data = await get24hTicker(`${symbol.toUpperCase()}USDT`);
-
-        console.log(
-          "[CoinDetail] 24 saatlik ticker verisi başarıyla alındı:",
-          data,
-        );
 
         setTicker24h(data);
       } catch (error) {
@@ -156,11 +111,10 @@ function CoinDetail() {
     load24hTicker();
   }, [symbol]);
 
+  // Canlı ticker
   useEffect(() => {
     const ws = connectTickerStream(`${symbol.toUpperCase()}USDT`, (data) => {
       const price = Number(data.c);
-
-      console.log("[CoinDetail] Canlı fiyat:", price);
 
       setLivePrice(price);
 
@@ -189,6 +143,7 @@ function CoinDetail() {
     };
   }, [symbol]);
 
+  // Canlı mum
   useEffect(() => {
     const ws = connectKlineStream(
       `${symbol.toUpperCase()}USDT`,
@@ -205,8 +160,6 @@ function CoinDetail() {
           volume: Number(kline.v),
         };
 
-        console.log("[CoinDetail] Düzenlenmiş canlı mum:", formattedCandle);
-
         setLiveCandle(formattedCandle);
       },
     );
@@ -217,6 +170,65 @@ function CoinDetail() {
       }
     };
   }, [symbol, selectedInterval]);
+
+  // Canlı emir defteri
+  useEffect(() => {
+    const ws = connectDepthStream(`${symbol.toUpperCase()}USDT`, (data) => {
+      const formattedSellOrders = data.asks.map(([price, amount]) => ({
+        id: price,
+        price: Number(price),
+        amount: Number(amount).toFixed(5),
+      }));
+
+      const formattedBuyOrders = data.bids.map(([price, amount]) => ({
+        id: price,
+        price: Number(price),
+        amount: Number(amount).toFixed(5),
+      }));
+
+      setSellOrders(formattedSellOrders);
+      setBuyOrders(formattedBuyOrders);
+    });
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [symbol]);
+
+  // Canlı son işlemler
+  useEffect(() => {
+    const ws = connectTradeStream(`${symbol.toUpperCase()}USDT`, (data) => {
+      const formattedTrade = {
+        id: data.a,
+        price: Number(data.p),
+        amount: Number(data.q),
+        time: new Date(data.T).toLocaleTimeString("tr-TR"),
+        side: data.m ? "sell" : "buy",
+      };
+
+      setTrades((previousTrades) =>
+        [formattedTrade, ...previousTrades].slice(0, 10),
+      );
+    });
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener(
+          "open",
+          () => {
+            ws.close();
+          },
+          { once: true },
+        );
+      }
+    };
+  }, [symbol]);
 
   return (
     <section>
@@ -290,15 +302,16 @@ function CoinDetail() {
         </div>
       </div>
 
+      {/* Fiyat Grafiği */}
       <div className="mt-8 rounded-2xl bg-neutral-900 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-neutral-100">
+            <h2 className="text-2xl font-bold tracking-tight text-lime-400">
               Fiyat Grafiği
             </h2>
 
             <p className="mt-1 text-sm text-neutral-400">
-              Mum grafiği burada gösterilecek.
+              Binance verileriyle gerçek zamanlı fiyat hareketlerini takip et.
             </p>
           </div>
 
@@ -324,27 +337,32 @@ function CoinDetail() {
           <CandlestickChart candles={candles} liveCandle={liveCandle} />
         </div>
       </div>
+
+      {/* Emir Defteri */}
       <div className="mt-5 rounded-2xl bg-neutral-900 p-5">
         <div>
-          <h2 className="text-xl font-bold text-neutral-100">Emir Defteri</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-lime-400">
+            Emir Defteri
+          </h2>
 
           <p className="mt-1 text-sm text-neutral-400">
-            Canlı alış ve satış emirleri burada gösterilecek.
+            En iyi alış ve satış emirlerini gerçek zamanlı olarak takip et.
           </p>
         </div>
 
         <div className="mt-5 rounded-2xl bg-neutral-950 p-4">
           <div className="grid grid-cols-2 text-xs text-neutral-500">
             <span>Fiyat (USDT)</span>
+
             <span className="text-right">Miktar ({symbol.toUpperCase()})</span>
           </div>
 
           {/* Satış emirleri */}
           <div className="mt-4">
-            {sampleSellOrders.map((order) => (
+            {[...sellOrders].reverse().map((order) => (
               <OrderBookRow
                 key={order.id}
-                price={order.price}
+                price={formatOrderPrice(order.price)}
                 amount={order.amount}
                 type="sell"
               />
@@ -352,15 +370,15 @@ function CoinDetail() {
           </div>
 
           <div className="font-data my-3 flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-xs text-neutral-400">
-            Spread: 0.60 USDT
+            Spread: {spread != null ? `${formatOrderPrice(spread)} USDT` : "—"}
           </div>
 
           {/* Alış emirleri */}
           <div className="mt-3">
-            {sampleBuyOrders.map((order) => (
+            {buyOrders.map((order) => (
               <OrderBookRow
                 key={order.id}
-                price={order.price}
+                price={formatOrderPrice(order.price)}
                 amount={order.amount}
                 type="buy"
               />
@@ -368,13 +386,16 @@ function CoinDetail() {
           </div>
         </div>
       </div>
+
+      {/* Son İşlemler */}
       <div className="mt-5 rounded-2xl bg-neutral-900 p-5">
         <div>
-          <h2 className="text-xl font-bold text-neutral-100">Son İşlemler</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-lime-400">
+            Son İşlemler
+          </h2>
 
           <p className="mt-1 text-sm text-neutral-400">
-            Gerçekleşen alış ve satış işlemleri burada canlı olarak
-            gösterilecek.
+            Piyasada gerçekleşen son işlemleri gerçek zamanlı olarak takip et.
           </p>
         </div>
 
@@ -386,11 +407,12 @@ function CoinDetail() {
 
             <span className="text-right">Saat</span>
           </div>
+
           <div className="mt-4">
-            {sampleTrades.map((trade) => (
+            {trades.map((trade) => (
               <TradeRow
                 key={trade.id}
-                price={trade.price}
+                price={formatOrderPrice(trade.price)}
                 amount={trade.amount}
                 time={trade.time}
                 side={trade.side}

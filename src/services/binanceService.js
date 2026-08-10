@@ -17,8 +17,6 @@ export async function getKlines(symbol, interval) {
     close: Number(candle[4]),
     volume: Number(candle[5]),
   }));
-  console.log("[Binance] Mum verileri:", formattedData);
-  console.table(formattedData.slice(0, 5));
 
   return formattedData;
 }
@@ -30,7 +28,6 @@ export async function get24hTicker(symbol) {
     throw new Error("Binance API'den veri alınamadı.");
   }
   const data = await response.json();
-  console.log("[Binance] 24 saatlik ticker verileri:", data);
   return data;
 }
 
@@ -45,8 +42,6 @@ export function connectTickerStream(symbol, onMessage) {
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-
-    console.log("[Binance WebSocket] Canlı ticker verisi:", data);
 
     onMessage(data);
   };
@@ -66,7 +61,41 @@ export function connectKlineStream(symbol, interval, onMessage) {
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
-    console.log("[Binance WebSocket] Canlı kline verisi:", data);
+    onMessage(data);
+  };
+
+  return ws;
+}
+
+export function connectDepthStream(symbol, onMessage) {
+  const ws = new WebSocket(
+    `${BINANCE_WS_BASE_URL}/${symbol.toLowerCase()}@depth10@100ms`,
+  );
+
+  ws.onopen = () => {
+    console.log(`[Binance WebSocket] ${symbol} derinlik bağlantısı açıldı.`);
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    onMessage(data);
+  };
+
+  return ws;
+}
+
+export function connectTradeStream(symbol, onMessage) {
+  const ws = new WebSocket(
+    `${BINANCE_WS_BASE_URL}/${symbol.toLowerCase()}@aggTrade`,
+  );
+
+  ws.onopen = () => {
+    console.log(`[Binance WebSocket] ${symbol} ticaret bağlantısı açıldı.`);
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
 
     onMessage(data);
   };
