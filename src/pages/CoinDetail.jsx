@@ -5,6 +5,7 @@ import TradeRow from "../components/TradeRow.jsx";
 import OrderBookRow from "../components/OrderBookRow.jsx";
 import TextType from "../components/TextType.jsx";
 import CandlestickChart from "../components/CandlestickChart.jsx";
+import Skeleton from "../components/Skeleton.jsx";
 
 import {
   getKlines,
@@ -67,47 +68,75 @@ function CoinDetail() {
 
   const change24h = ticker24h ? Number(ticker24h.priceChangePercent) : null;
 
+  const [isChartLoading, setIsChartLoading] = useState(true);
+  const [chartError, setChartError] = useState(null);
+
+  const [isTickerLoading, setIsTickerLoading] = useState(true);
+  const [tickerError, setTickerError] = useState(null);
+
+  const [isOrderBookLoading, setIsOrderBookLoading] = useState(true);
+  const [orderBookError, setOrderBookError] = useState(null);
+  const [orderBookRetryKey, setOrderBookRetryKey] = useState(0);
+
+  const [isTradesLoading, setIsTradesLoading] = useState(true);
+  const [tradesError, setTradesError] = useState(null);
+  const [tradesRetryKey, setTradesRetryKey] = useState(0);
+
   const spread =
     sellOrders.length > 0 && buyOrders.length > 0
       ? sellOrders[0].price - buyOrders[0].price
       : null;
 
+  async function loadKlinesData() {
+    setIsChartLoading(true);
+    setChartError(null);
+
+    try {
+      const data = await getKlines(
+        `${symbol.toUpperCase()}USDT`,
+        selectedInterval,
+      );
+
+      setCandles(data);
+    } catch (error) {
+      console.error("[CoinDetail] Mum verileri alınırken hata oluştu:", error);
+
+      setChartError("Grafik verileri şu anda alınamıyor.");
+    } finally {
+      setIsChartLoading(false);
+    }
+  }
+
   // Geçmiş mum verileri
   useEffect(() => {
-    async function loadKlines() {
-      try {
-        const data = await getKlines(
-          `${symbol.toUpperCase()}USDT`,
-          selectedInterval,
-        );
-
-        setCandles(data);
-      } catch (error) {
-        console.error(
-          "[CoinDetail] Mum verileri alınırken hata oluştu:",
-          error,
-        );
-      }
-    }
-
-    loadKlines();
+    loadKlinesData();
   }, [symbol, selectedInterval]);
 
-  // 24 saatlik ticker verileri
-  useEffect(() => {
-    async function load24hTicker() {
-      try {
-        const data = await get24hTicker(`${symbol.toUpperCase()}USDT`);
+  async function load24hTicker() {
+    console.log("[CoinDetail] 24 saatlik ticker verisi isteniyor.");
 
-        setTicker24h(data);
-      } catch (error) {
-        console.error(
-          "[CoinDetail] 24 saatlik ticker verisi alınırken hata oluştu:",
-          error,
-        );
-      }
+    setIsTickerLoading(true);
+    setTickerError(null);
+
+    try {
+      const data = await get24hTicker(`${symbol.toUpperCase()}USDT`);
+
+      setTicker24h(data);
+
+      console.log("[CoinDetail] 24 saatlik ticker verisi alındı.");
+    } catch (error) {
+      console.error(
+        "[CoinDetail] 24 saatlik ticker verisi alınırken hata oluştu:",
+        error,
+      );
+
+      setTickerError("Fiyat özeti şu anda alınamıyor.");
+    } finally {
+      setIsTickerLoading(false);
     }
+  }
 
+  useEffect(() => {
     load24hTicker();
   }, [symbol]);
 
@@ -117,6 +146,9 @@ function CoinDetail() {
       const price = Number(data.c);
 
       setLivePrice(price);
+
+      setTickerError(null);
+      setIsTickerLoading(false);
 
       setTicker24h((previousTicker) => ({
         ...previousTicker,
@@ -161,6 +193,9 @@ function CoinDetail() {
         };
 
         setLiveCandle(formattedCandle);
+
+        setChartError(null);
+        setIsChartLoading(false);
       },
     );
 
@@ -173,6 +208,9 @@ function CoinDetail() {
 
   // Canlı emir defteri
   useEffect(() => {
+    setIsOrderBookLoading(true);
+    setOrderBookError(null);
+
     const ws = connectDepthStream(`${symbol.toUpperCase()}USDT`, (data) => {
       const formattedSellOrders = data.asks.map(([price, amount]) => ({
         id: price,
@@ -188,30 +226,19 @@ function CoinDetail() {
 
       setSellOrders(formattedSellOrders);
       setBuyOrders(formattedBuyOrders);
+
+      setIsOrderBookLoading(false);
+      setOrderBookError(null);
     });
 
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, [symbol]);
-
-  // Canlı son işlemler
-  useEffect(() => {
-    const ws = connectTradeStream(`${symbol.toUpperCase()}USDT`, (data) => {
-      const formattedTrade = {
-        id: data.a,
-        price: Number(data.p),
-        amount: Number(data.q),
-        time: new Date(data.T).toLocaleTimeString("tr-TR"),
-        side: data.m ? "sell" : "buy",
-      };
-
-      setTrades((previousTrades) =>
-        [formattedTrade, ...previousTrades].slice(0, 10),
+    ws.onerror = () => {
+      console.error(
+        "[CoinDetail] Emir defteri WebSocket bağlantısında hata oluştu.",
       );
-    });
+
+      setIsOrderBookLoading(false);
+      setOrderBookError("Emir defteri şu anda alınamıyor.");
+    };
 
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -228,7 +255,55 @@ function CoinDetail() {
         );
       }
     };
-  }, [symbol]);
+  }, [symbol, orderBookRetryKey]);
+
+  // Canlı son işlemler
+  useEffect(() => {
+    setIsTradesLoading(true);
+    setTradesError(null);
+
+    const ws = connectTradeStream(`${symbol.toUpperCase()}USDT`, (data) => {
+      const formattedTrade = {
+        id: data.a,
+        price: Number(data.p),
+        amount: Number(data.q),
+        time: new Date(data.T).toLocaleTimeString("tr-TR"),
+        side: data.m ? "sell" : "buy",
+      };
+
+      setTrades((previousTrades) =>
+        [formattedTrade, ...previousTrades].slice(0, 10),
+      );
+
+      setIsTradesLoading(false);
+      setTradesError(null);
+    });
+
+    ws.onerror = () => {
+      console.error(
+        "[CoinDetail] Son işlemler WebSocket bağlantısında hata oluştu.",
+      );
+
+      setIsTradesLoading(false);
+      setTradesError("Son işlemler şu anda alınamıyor.");
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener(
+          "open",
+          () => {
+            ws.close();
+          },
+          { once: true },
+        );
+      }
+    };
+  }, [symbol, tradesRetryKey]);
 
   return (
     <section>
@@ -258,47 +333,70 @@ function CoinDetail() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
-            <p className="text-sm text-neutral-400">Güncel Fiyat</p>
+          {isTickerLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="rounded-2xl bg-neutral-900 px-5 py-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="mt-3 h-7 w-28" />
+              </div>
+            ))
+          ) : tickerError ? (
+            <div className="col-span-full rounded-2xl bg-neutral-900 px-6 py-8 text-center">
+              <p className="text-neutral-300">{tickerError}</p>
 
-            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-neutral-100">
-              {currentPrice ? formatPrice(currentPrice) : "—"}
-            </p>
-          </div>
+              <button
+                type="button"
+                onClick={load24hTicker}
+                className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+                <p className="text-sm text-neutral-400">Güncel Fiyat</p>
 
-          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
-            <p className="text-sm text-neutral-400">24s En Yüksek</p>
+                <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-neutral-100">
+                  {currentPrice ? formatPrice(currentPrice) : "—"}
+                </p>
+              </div>
 
-            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-lime-400">
-              {high24h ? formatPrice(high24h) : "—"}
-            </p>
-          </div>
+              <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+                <p className="text-sm text-neutral-400">24s En Yüksek</p>
 
-          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
-            <p className="text-sm text-neutral-400">24s En Düşük</p>
+                <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-lime-400">
+                  {high24h ? formatPrice(high24h) : "—"}
+                </p>
+              </div>
 
-            <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-red-400">
-              {low24h ? formatPrice(low24h) : "—"}
-            </p>
-          </div>
+              <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+                <p className="text-sm text-neutral-400">24s En Düşük</p>
 
-          <div className="rounded-2xl bg-neutral-900 px-5 py-4">
-            <p className="text-sm text-neutral-400">24s Değişim</p>
+                <p className="font-data mt-2 whitespace-nowrap text-xl font-semibold text-red-400">
+                  {low24h ? formatPrice(low24h) : "—"}
+                </p>
+              </div>
 
-            <p
-              className={`font-data mt-2 whitespace-nowrap text-xl font-semibold ${
-                change24h > 0
-                  ? "text-lime-400"
-                  : change24h < 0
-                    ? "text-red-400"
-                    : "text-neutral-400"
-              }`}
-            >
-              {change24h != null
-                ? `${change24h > 0 ? "+" : ""}${change24h.toFixed(2)}%`
-                : "—"}
-            </p>
-          </div>
+              <div className="rounded-2xl bg-neutral-900 px-5 py-4">
+                <p className="text-sm text-neutral-400">24s Değişim</p>
+
+                <p
+                  className={`font-data mt-2 whitespace-nowrap text-xl font-semibold ${
+                    change24h > 0
+                      ? "text-lime-400"
+                      : change24h < 0
+                        ? "text-red-400"
+                        : "text-neutral-400"
+                  }`}
+                >
+                  {change24h != null
+                    ? `${change24h > 0 ? "+" : ""}${change24h.toFixed(2)}%`
+                    : "—"}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -334,7 +432,23 @@ function CoinDetail() {
         </div>
 
         <div className="mt-5 min-h-80 rounded-2xl bg-neutral-950">
-          <CandlestickChart candles={candles} liveCandle={liveCandle} />
+          {isChartLoading ? (
+            <Skeleton className="h-80 w-full rounded-2xl" />
+          ) : chartError ? (
+            <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
+              <p className="text-neutral-300">{chartError}</p>
+
+              <button
+                type="button"
+                onClick={loadKlinesData}
+                className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          ) : (
+            <CandlestickChart candles={candles} liveCandle={liveCandle} />
+          )}
         </div>
       </div>
 
@@ -351,39 +465,70 @@ function CoinDetail() {
         </div>
 
         <div className="mt-5 rounded-2xl bg-neutral-950 p-4">
-          <div className="grid grid-cols-2 text-xs text-neutral-500">
-            <span>Fiyat (USDT)</span>
+          {isOrderBookLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-1"
+                >
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : orderBookError ? (
+            <div className="flex min-h-64 flex-col items-center justify-center text-center">
+              <p className="text-neutral-300">{orderBookError}</p>
 
-            <span className="text-right">Miktar ({symbol.toUpperCase()})</span>
-          </div>
+              <button
+                type="button"
+                onClick={() => setOrderBookRetryKey((previous) => previous + 1)}
+                className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 text-xs text-neutral-500">
+                <span>Fiyat (USDT)</span>
 
-          {/* Satış emirleri */}
-          <div className="mt-4">
-            {[...sellOrders].reverse().map((order) => (
-              <OrderBookRow
-                key={order.id}
-                price={formatOrderPrice(order.price)}
-                amount={order.amount}
-                type="sell"
-              />
-            ))}
-          </div>
+                <span className="text-right">
+                  Miktar ({symbol.toUpperCase()})
+                </span>
+              </div>
 
-          <div className="font-data my-3 flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-xs text-neutral-400">
-            Spread: {spread != null ? `${formatOrderPrice(spread)} USDT` : "—"}
-          </div>
+              {/* Satış emirleri */}
+              <div className="mt-4">
+                {[...sellOrders].reverse().map((order) => (
+                  <OrderBookRow
+                    key={order.id}
+                    price={formatOrderPrice(order.price)}
+                    amount={order.amount}
+                    type="sell"
+                  />
+                ))}
+              </div>
 
-          {/* Alış emirleri */}
-          <div className="mt-3">
-            {buyOrders.map((order) => (
-              <OrderBookRow
-                key={order.id}
-                price={formatOrderPrice(order.price)}
-                amount={order.amount}
-                type="buy"
-              />
-            ))}
-          </div>
+              <div className="font-data my-3 flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-xs text-neutral-400">
+                Spread:{" "}
+                {spread != null ? `${formatOrderPrice(spread)} USDT` : "—"}
+              </div>
+
+              {/* Alış emirleri */}
+              <div className="mt-3">
+                {buyOrders.map((order) => (
+                  <OrderBookRow
+                    key={order.id}
+                    price={formatOrderPrice(order.price)}
+                    amount={order.amount}
+                    type="buy"
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -400,25 +545,53 @@ function CoinDetail() {
         </div>
 
         <div className="mt-5 rounded-2xl bg-neutral-950 p-4">
-          <div className="grid grid-cols-3 text-xs text-neutral-500">
-            <span className="text-left">Fiyat (USDT)</span>
+          {isTradesLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="grid grid-cols-3 items-center py-1">
+                  <Skeleton className="h-4 w-24 justify-self-start" />
+                  <Skeleton className="h-4 w-20 justify-self-center" />
+                  <Skeleton className="h-4 w-16 justify-self-end" />
+                </div>
+              ))}
+            </div>
+          ) : tradesError ? (
+            <div className="flex min-h-64 flex-col items-center justify-center text-center">
+              <p className="text-neutral-300">{tradesError}</p>
 
-            <span className="text-center">Miktar ({symbol.toUpperCase()})</span>
+              <button
+                type="button"
+                onClick={() => setTradesRetryKey((previous) => previous + 1)}
+                className="mt-4 rounded-xl bg-lime-400 px-5 py-2.5 font-medium text-neutral-950 transition-transform hover:scale-105"
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 text-xs text-neutral-500">
+                <span className="text-left">Fiyat (USDT)</span>
 
-            <span className="text-right">Saat</span>
-          </div>
+                <span className="text-center">
+                  Miktar ({symbol.toUpperCase()})
+                </span>
 
-          <div className="mt-4">
-            {trades.map((trade) => (
-              <TradeRow
-                key={trade.id}
-                price={formatOrderPrice(trade.price)}
-                amount={trade.amount}
-                time={trade.time}
-                side={trade.side}
-              />
-            ))}
-          </div>
+                <span className="text-right">Saat</span>
+              </div>
+
+              <div className="mt-4">
+                {trades.map((trade) => (
+                  <TradeRow
+                    key={trade.id}
+                    price={formatOrderPrice(trade.price)}
+                    amount={trade.amount}
+                    time={trade.time}
+                    side={trade.side}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
