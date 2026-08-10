@@ -262,20 +262,6 @@ npm run dev
 
 ---
 
-## Deployment
-
-The project is deployed with **Vercel**.
-
-🔗 **Live Demo:** https://crypto-market-ruddy-three.vercel.app/
-
----
-
-## Repository
-
-GitHub: https://github.com/Bengu-Elmas/crypto-market
-
----
-
 ## Author
 
 **Bengü Elmas**
