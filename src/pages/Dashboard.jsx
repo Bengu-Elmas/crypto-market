@@ -8,6 +8,7 @@ import {
   getMarketCoins,
 } from "../services/coinGeckoService.js";
 import MarketMoverCard from "../components/MarketMoverCard.jsx";
+import Skeleton from "../components/Skeleton.jsx";
 
 function formatCompactCurrency(value) {
   if (value == null) {
@@ -35,6 +36,9 @@ function Dashboard() {
   const [trendingCoins, setTrendingCoins] = useState([]);
   const [marketCoins, setMarketCoins] = useState([]);
   const hasLoadedDashboard = useRef(false);
+  const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+  const [isTrendingLoading, setIsTrendingLoading] = useState(true);
+  const [isMarketLoading, setIsMarketLoading] = useState(true);
 
   const marketStats = [
     {
@@ -83,6 +87,8 @@ function Dashboard() {
           "[Dashboard] Global piyasa verileri alınırken hata oluştu:",
           error,
         );
+      } finally {
+        setIsGlobalLoading(false);
       }
 
       try {
@@ -99,6 +105,8 @@ function Dashboard() {
           "[Dashboard] Trending coinler alınırken hata oluştu:",
           error,
         );
+      } finally {
+        setIsTrendingLoading(false);
       }
 
       try {
@@ -115,6 +123,8 @@ function Dashboard() {
           "[Dashboard] Market coinleri alınırken hata oluştu:",
           error,
         );
+      } finally {
+        setIsMarketLoading(false);
       }
     }
 
@@ -160,9 +170,20 @@ function Dashboard() {
         </p>
       </div>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {marketStats.map((stat) => (
-          <MarketStatCard key={stat.id} title={stat.title} value={stat.value} />
-        ))}
+        {isGlobalLoading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="rounded-2xl bg-neutral-900 p-5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="mt-4 h-8 w-24" />
+              </div>
+            ))
+          : marketStats.map((stat) => (
+              <MarketStatCard
+                key={stat.id}
+                title={stat.title}
+                value={stat.value}
+              />
+            ))}
       </div>
 
       <div className="mt-10">
@@ -176,31 +197,88 @@ function Dashboard() {
             Son dönemde kullanıcıların en çok ilgi gösterdiği kripto paralar.
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {trendingCoins.map((coin) => (
-              <TrendCoinCard
-                key={coin.id ?? coin.symbol ?? coin.name}
-                name={coin.name}
-                symbol={coin.symbol}
-                price={coin.price}
-                change={coin.change}
-                image={coin.image}
-              />
-            ))}
+            {isTrendingLoading
+              ? Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="rounded-2xl bg-neutral-900 p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+
+                        <div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="mt-2 h-3 w-12" />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="mt-2 h-3 w-14" />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              : trendingCoins.map((coin) => (
+                  <TrendCoinCard
+                    key={coin.id ?? coin.symbol ?? coin.name}
+                    name={coin.name}
+                    symbol={coin.symbol}
+                    price={coin.price}
+                    change={coin.change}
+                    image={coin.image}
+                  />
+                ))}
           </div>
         </div>
       </div>
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
-        <MarketMoverCard
-          title="En Çok Yükselenler"
-          coins={topGainers}
-          type="gainer"
-        />
+        {isMarketLoading ? (
+          <>
+            {Array.from({ length: 2 }).map((_, cardIndex) => (
+              <div key={cardIndex} className="rounded-2xl bg-neutral-900 p-5">
+                {/* Başlık */}
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-7 w-7" />
+                  <Skeleton className="h-5 w-40" />
+                </div>
 
-        <MarketMoverCard
-          title="En Çok Düşenler"
-          coins={topLosers}
-          type="loser"
-        />
+                {/* Coin satırları */}
+                <div className="mt-4 space-y-3">
+                  {Array.from({ length: 3 }).map((_, rowIndex) => (
+                    <div
+                      key={rowIndex}
+                      className="flex items-center justify-between rounded-xl bg-neutral-950 px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+
+                        <div>
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="mt-2 h-3 w-12" />
+                        </div>
+                      </div>
+
+                      <Skeleton className="h-4 w-14" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <MarketMoverCard
+              title="En Çok Yükselenler"
+              coins={topGainers}
+              type="gainer"
+            />
+
+            <MarketMoverCard
+              title="En Çok Düşenler"
+              coins={topLosers}
+              type="loser"
+            />
+          </>
+        )}
       </div>
     </section>
   );
