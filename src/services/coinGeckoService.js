@@ -80,5 +80,5 @@ export async function getTrendingCoins() {
     })),
   );
 
-  return formattedCoins.slice(0, 12);
+  return formattedCoins.slice(0, 6);
 }

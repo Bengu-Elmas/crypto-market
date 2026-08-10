@@ -1,11 +1,13 @@
 import TrendCoinCard from "../components/TrendCoinCard.jsx";
 import MarketStatCard from "../components/MarketStatCard.jsx";
 import TextType from "../components/TextType.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   getGlobalMarketData,
   getTrendingCoins,
+  getMarketCoins,
 } from "../services/coinGeckoService.js";
+import MarketMoverCard from "../components/MarketMoverCard.jsx";
 
 function formatCompactCurrency(value) {
   if (value == null) {
@@ -31,6 +33,8 @@ function formatNumber(value) {
 function Dashboard() {
   const [globalData, setGlobalData] = useState(null);
   const [trendingCoins, setTrendingCoins] = useState([]);
+  const [marketCoins, setMarketCoins] = useState([]);
+  const hasLoadedDashboard = useRef(false);
 
   const marketStats = [
     {
@@ -59,68 +63,79 @@ function Dashboard() {
   ];
 
   useEffect(() => {
-    async function loadGlobalMarketData() {
-      console.log("[Dashboard] Global piyasa verileri isteniyor.");
+    if (hasLoadedDashboard.current) {
+      return;
+    }
+
+    hasLoadedDashboard.current = true;
+
+    async function loadDashboardData() {
+      console.log("[Dashboard] Veriler yükleniyor.");
 
       try {
-        const data = await getGlobalMarketData();
+        const globalMarketData = await getGlobalMarketData();
 
-        console.log(
-          "[Dashboard] Global piyasa verileri başarıyla alındı:",
-          data,
-        );
+        setGlobalData(globalMarketData);
 
-        setGlobalData(data);
+        console.log("[Dashboard] Global piyasa verileri alındı.");
       } catch (error) {
         console.error(
           "[Dashboard] Global piyasa verileri alınırken hata oluştu:",
           error,
         );
       }
-    }
-
-    loadGlobalMarketData();
-  }, []);
-
-  useEffect(() => {
-    async function loadTrendingCoins() {
-      console.log("[Dashboard] Trending coinler isteniyor.");
 
       try {
-        const data = await getTrendingCoins();
+        const trendingData = await getTrendingCoins();
+
+        setTrendingCoins(trendingData);
 
         console.log(
-          "[Dashboard] Trending coinler başarıyla alındı:",
-          data.length,
+          "[Dashboard] Trending coinler alındı:",
+          trendingData.length,
         );
-
-        setTrendingCoins(data);
       } catch (error) {
         console.error(
           "[Dashboard] Trending coinler alınırken hata oluştu:",
           error,
         );
       }
+
+      try {
+        const marketData = await getMarketCoins();
+
+        setMarketCoins(marketData);
+
+        console.log(
+          "[Dashboard] Yükselen/düşen coin verileri alındı:",
+          marketData.length,
+        );
+      } catch (error) {
+        console.error(
+          "[Dashboard] Market coinleri alınırken hata oluştu:",
+          error,
+        );
+      }
     }
 
-    loadTrendingCoins();
+    loadDashboardData();
   }, []);
 
-  useEffect(() => {
-    if (globalData) {
-      console.log("[Dashboard] Global data state'i güncellendi.");
-    }
-  }, [globalData]);
+  const coinsWithChange = marketCoins.filter(
+    (coin) => coin.price_change_percentage_24h != null,
+  );
 
-  useEffect(() => {
-    if (trendingCoins.length > 0) {
-      console.log(
-        "[Dashboard] Trending state'i güncellendi:",
-        trendingCoins.length,
-        "coin",
-      );
-    }
-  }, [trendingCoins]);
+  const topGainers = [...coinsWithChange]
+    .sort(
+      (a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h,
+    )
+    .slice(0, 3);
+
+  const topLosers = [...coinsWithChange]
+    .sort(
+      (a, b) => a.price_change_percentage_24h - b.price_change_percentage_24h,
+    )
+    .slice(0, 3);
 
   return (
     <section>
@@ -149,6 +164,7 @@ function Dashboard() {
           <MarketStatCard key={stat.id} title={stat.title} value={stat.value} />
         ))}
       </div>
+
       <div className="mt-10">
         <div>
           <p className="text-sm font-medium text-lime-400">Gündemde</p>
@@ -172,6 +188,19 @@ function Dashboard() {
             ))}
           </div>
         </div>
+      </div>
+      <div className="mt-10 grid gap-4 lg:grid-cols-2">
+        <MarketMoverCard
+          title="En Çok Yükselenler"
+          coins={topGainers}
+          type="gainer"
+        />
+
+        <MarketMoverCard
+          title="En Çok Düşenler"
+          coins={topLosers}
+          type="loser"
+        />
       </div>
     </section>
   );
