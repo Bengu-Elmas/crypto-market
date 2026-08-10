@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { getMarketCoins } from "../services/coinGeckoService.js";
 import TextType from "../components/TextType.jsx";
 import MiniSparkline from "../components/MiniSparkline.jsx";
+import Skeleton from "../components/Skeleton.jsx";
 
 function formatPrice(price) {
   return new Intl.NumberFormat("en-US", {
@@ -42,6 +43,7 @@ function Markets() {
   });
 
   const coinsPerPage = 25;
+  const [isLoading, setIsLoading] = useState(true);
 
   function toggleFavorite(coinId) {
     setFavorites((previousFavorites) => {
@@ -106,6 +108,8 @@ function Markets() {
         setCoins(data);
       } catch (error) {
         console.error("[Markets] Coin verileri alınırken hata oluştu:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -268,7 +272,38 @@ function Markets() {
           </div>
 
           {/* Coin satırları */}
-          {paginatedCoins.length > 0 ? (
+          {isLoading ? (
+            Array.from({ length: 8 }).map((_, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 rounded-2xl bg-neutral-950 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] lg:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.9fr_0.8fr] sm:px-5"
+              >
+                {/* Coin skeleton */}
+                <div className="flex min-w-0 items-center gap-3">
+                  <Skeleton className="h-8 w-8 shrink-0" />
+
+                  <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+
+                  <div>
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="mt-2 h-3 w-10" />
+                  </div>
+                </div>
+
+                {/* Fiyat skeleton */}
+                <Skeleton className="h-4 w-20 justify-self-center" />
+
+                {/* 7G trend skeleton */}
+                <Skeleton className="hidden h-8 w-28 justify-self-center lg:block" />
+
+                {/* Piyasa değeri skeleton */}
+                <Skeleton className="hidden h-4 w-20 justify-self-center sm:block" />
+
+                {/* 24 saat değişim skeleton */}
+                <Skeleton className="h-4 w-14 justify-self-end" />
+              </div>
+            ))
+          ) : paginatedCoins.length > 0 ? (
             paginatedCoins.map((coin) => {
               const isFavorite = favorites.includes(coin.id);
 
