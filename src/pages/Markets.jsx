@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { getMarketCoins } from "../services/coinGeckoService.js";
 import TextType from "../components/TextType.jsx";
+import MiniSparkline from "../components/MiniSparkline.jsx";
 
 function formatPrice(price) {
   return new Intl.NumberFormat("en-US", {
@@ -216,7 +217,7 @@ function Markets() {
       <div className="mt-6 rounded-2xl bg-neutral-900 p-4">
         <div className="space-y-2">
           {/* Tablo başlıkları */}
-          <div className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-300 sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] sm:px-5">
+          <div className="grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-300 sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] lg:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.9fr_0.8fr] sm:px-5">
             <div className="flex items-center gap-3">
               <span className="h-8 w-8 shrink-0" aria-hidden="true" />
               <span className="h-9 w-9 shrink-0" aria-hidden="true" />
@@ -232,6 +233,10 @@ function Markets() {
               {sortConfig.key === "current_price" &&
                 (sortConfig.direction === "desc" ? "↓" : "↑")}
             </button>
+
+            <span className="hidden justify-self-center lg:block">
+              7G TREND
+            </span>
 
             <button
               type="button"
@@ -270,7 +275,7 @@ function Markets() {
               return (
                 <div
                   key={coin.id}
-                  className="relative grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 rounded-2xl bg-neutral-950 px-4 py-4 transition-all duration-300 hover:scale-[1.01] hover:bg-neutral-800 hover:shadow-[0_6px_20px_rgba(163,230,53,0.08)] sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] sm:px-5"
+                  className="relative grid grid-cols-[minmax(0,1.5fr)_0.7fr_0.8fr] items-center gap-3 rounded-2xl bg-neutral-950 px-4 py-4 transition-all duration-300 hover:scale-[1.01] hover:bg-neutral-800 hover:shadow-[0_6px_20px_rgba(163,230,53,0.08)] sm:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.8fr] lg:grid-cols-[minmax(0,1.4fr)_0.8fr_0.9fr_0.9fr_0.8fr] sm:px-5"
                 >
                   {/* Satırın tamamını Coin Detail'e götüren link */}
                   <Link
@@ -298,8 +303,8 @@ function Markets() {
                         aria-hidden="true"
                         className={`h-5 w-5 transition-all duration-200 ${
                           isFavorite
-                            ? "opacity-100 drop-shadow-[0_0_6px_rgba(163,230,53,0.75)]"
-                            : "opacity-40 hover:opacity-70"
+                            ? "scale-110 brightness-125 saturate-150 opacity-100 drop-shadow-[0_0_8px_rgba(163,230,53,0.95)]"
+                            : "opacity-50 hover:opacity-75"
                         }`}
                       />
                     </button>
@@ -323,6 +328,11 @@ function Markets() {
                   <span className="font-data justify-self-center text-sm text-neutral-400">
                     {formatPrice(coin.current_price)}
                   </span>
+
+                  {/* 7 günlük trend */}
+                  <div className="hidden justify-self-center lg:block">
+                    <MiniSparkline prices={coin.sparkline_in_7d?.price} />
+                  </div>
 
                   {/* Piyasa değeri */}
                   <span className="font-data hidden justify-self-center text-sm text-neutral-400 sm:block">
